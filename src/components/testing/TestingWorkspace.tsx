@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ChevronLeft, ExternalLink, Settings, Info, Eye, Keyboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import {
   Tooltip,
   TooltipContent,
@@ -25,15 +26,40 @@ interface TestingWorkspaceProps {
   onBack: () => void;
 }
 
-// Mock pages data
-const mockPages = [
-  { id: '1', url: 'https://shop.techcorp.com', path: '/', status: 'In Testing' as const, coverageLabel: 'Key' as const },
-  { id: '2', url: 'https://shop.techcorp.com/products', path: '/products', status: 'Planned' as const, coverageLabel: 'Template' as const },
-  { id: '3', url: 'https://shop.techcorp.com/checkout', path: '/checkout', status: 'Completed' as const, coverageLabel: 'Key' as const },
-];
 
-export const TestingWorkspace = ({ report, onBack }: TestingWorkspaceProps) => {
-  const [currentPage, setCurrentPage] = useState(mockPages[0]);
+export const TestingWorkspace = ({ report, suggestedPages, onBack }: TestingWorkspaceProps & { suggestedPages: string[] }) => {
+  const [currentPage, setCurrentPage] = useState<{
+    id: string;
+    url: string;
+    path: string;
+    status: 'In Testing' | 'Planned' | 'Completed';
+    coverageLabel: 'Key' | 'Template' | 'Sample';
+  } | null>(null);
+  const [pages, setPages] = useState<Array<{
+    id: string;
+    url: string;
+    path: string;
+    status: 'In Testing' | 'Planned' | 'Completed';
+    coverageLabel: 'Key' | 'Template' | 'Sample';
+  }>>([]);
+
+  // Initialize pages and currentPage when suggestedPages change
+  useEffect(() => {
+    if (suggestedPages.length > 0) {
+      const newPages = suggestedPages.map((url, index) => ({
+        id: (index + 1).toString(),
+        url,
+        path: new URL(url).pathname,
+        status: 'Planned' as const,
+        coverageLabel: 'Template' as const,
+      }));
+      setPages(newPages);
+      setCurrentPage(newPages[0]);
+    } else {
+      setPages([]);
+      setCurrentPage(null);
+    }
+  }, [suggestedPages]);
   const [wcagVersion, setWcagVersion] = useState<WCAGVersion>(report.standards?.[0] as WCAGVersion || '2.2');
   const [wcagLevel, setWcagLevel] = useState<WCAGLevel>(report.level || 'AA');
   const [showCrosswalk, setShowCrosswalk] = useState(false);
@@ -98,10 +124,11 @@ export const TestingWorkspace = ({ report, onBack }: TestingWorkspaceProps) => {
           
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium">Current Page:</span>
+            <div className="flex flex-col w-64">
             <Select 
-              value={currentPage.id} 
+              value={currentPage?.id} 
               onValueChange={(value) => {
-                const page = mockPages.find(p => p.id === value);
+                const page = pages.find(p => p.id === value);
                 if (page) setCurrentPage(page);
               }}
             >
@@ -109,7 +136,7 @@ export const TestingWorkspace = ({ report, onBack }: TestingWorkspaceProps) => {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {mockPages.map((page) => (
+                {pages.map((page) => (
                   <SelectItem key={page.id} value={page.id}>
                     <div className="flex items-center gap-2">
                       <Badge 
@@ -124,6 +151,30 @@ export const TestingWorkspace = ({ report, onBack }: TestingWorkspaceProps) => {
                 ))}
               </SelectContent>
             </Select>
+            <Input
+              type="url"
+              placeholder="Enter custom URL"
+              className="mt-2"
+              value={currentPage?.url ?? ''}
+              onChange={(e) => {
+                const url = e.target.value;
+                const existingPage = pages.find(p => p.url === url);
+                if (existingPage) {
+                  setCurrentPage(existingPage);
+                } else {
+                  const newPage = {
+                    id: (pages.length + 1).toString(),
+                    url,
+                    path: '/',
+                    status: 'Planned' as const,
+                    coverageLabel: 'Sample' as const,
+                  };
+                  setPages(prevPages => [...prevPages, newPage]);
+                  setCurrentPage(newPage);
+                }
+              }}
+            />
+            </div>
           </div>
         </div>
 
@@ -206,7 +257,7 @@ export const TestingWorkspace = ({ report, onBack }: TestingWorkspaceProps) => {
               wcagVersion={wcagVersion}
               wcagLevel={wcagLevel}
               showCrosswalk={showCrosswalk}
-              pageId={currentPage.id}
+              pageId={currentPage?.id ?? ''}
               reportId={report.id || ''}
             />
           </div>
@@ -219,7 +270,7 @@ export const TestingWorkspace = ({ report, onBack }: TestingWorkspaceProps) => {
               <div className="flex items-center gap-2">
                 <h3 className="font-medium">Content Viewer</h3>
                 <Badge variant="outline" className="text-xs">
-                  {currentPage.coverageLabel}
+                  {currentPage?.coverageLabel ?? ''}
                 </Badge>
               </div>
               
@@ -238,7 +289,7 @@ export const TestingWorkspace = ({ report, onBack }: TestingWorkspaceProps) => {
           
           <div className="flex-1">
             <ContentViewer
-              url={currentPage.url}
+              url={currentPage?.url ?? ''}
               scopeType={report.scopeType || 'web'}
             />
           </div>

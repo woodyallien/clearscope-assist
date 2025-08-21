@@ -8,15 +8,30 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 export const Header = () => {
   return (
     <header className="border-b bg-card/50 backdrop-blur supports-[backdrop-filter]:bg-card/80">
       <div className="flex h-16 items-center justify-between px-6">
         <div className="flex items-center gap-4">
-          <h1 className="text-xl font-semibold text-foreground">
+          <h1 className="text-xl font-semibold text-foreground flex items-center gap-2">
             <span className="sr-only">Accessibility Testing Tool - </span>
-            A11y Audit Pro
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 32 32" aria-hidden="true">
+              <circle cx="16" cy="16" r="16" fill="#2563eb"/>
+              <text
+                x="16"
+                y="16"
+                textAnchor="middle"
+                fill="#fff"
+                fontSize="15"
+                fontWeight="bold"
+                fontFamily="Arial, sans-serif"
+                alignmentBaseline="middle"
+                dominantBaseline="middle"
+              >iA</text>
+            </svg>
+            iAccessible Manual Testing
           </h1>
           
           <div className="relative ml-8 hidden md:block">
@@ -43,6 +58,11 @@ export const Header = () => {
             <HelpCircle className="h-4 w-4" aria-hidden="true" />
             Help
           </Button>
+
+          {/* Theme Toggle Button */}
+          <div className="hidden md:block">
+            <ThemeToggle />
+          </div>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

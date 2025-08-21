@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Filter, Download, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,78 +13,46 @@ import { ReportCard } from './ReportCard';
 import { CreateReportWizard } from '../reports/CreateReportWizard';
 import type { Report } from '@/types';
 
-// Mock data for demonstration
-const mockReports = [
-  {
-    id: '1',
-    title: 'E-commerce Platform Audit',
-    client: 'TechCorp Inc.',
-    project: 'Main Shopping Site',
-    standards: ['2.2'],
-    level: 'AA',
-    scopeType: 'web',
-    domain: 'shop.techcorp.com',
-    status: 'In Review',
-    version: 1,
-    tags: ['ecommerce', 'responsive'],
-    progressPercent: 75,
-    criticalIssues: 3,
-    majorIssues: 8,
-    minorIssues: 12,
-  },
-  {
-    id: '2',
-    title: 'Banking App Mobile Audit',
-    client: 'SecureBank',
-    project: 'Mobile Banking',
-    standards: ['2.2'],
-    level: 'AA',
-    scopeType: 'mobile',
-    domain: 'mobile.securebank.com',
-    status: 'Draft',
-    version: 1,
-    tags: ['mobile', 'financial'],
-    progressPercent: 30,
-    criticalIssues: 1,
-    majorIssues: 5,
-    minorIssues: 7,
-  },
-  {
-    id: '3',
-    title: 'Government Portal Assessment',
-    client: 'City of Springfield',
-    project: 'Public Services Portal',
-    standards: ['2.1'],
-    level: 'AA',
-    scopeType: 'web',
-    domain: 'services.springfield.gov',
-    status: 'Approved',
-    version: 2,
-    tags: ['government', 'public'],
-    progressPercent: 100,
-    criticalIssues: 0,
-    majorIssues: 2,
-    minorIssues: 8,
-  },
-] as Array<Partial<Report> & {
-  progressPercent: number;
-  criticalIssues: number;
-  majorIssues: number;
-  minorIssues: number;
-}>;
-
 interface DashboardProps {
   onReportSelect: (reportId: string) => void;
 }
 
-export const Dashboard = ({ onReportSelect }: DashboardProps) => {
+export const Dashboard = ({ onReportSelect, onReportComplete }: DashboardProps & { onReportComplete: (id: string) => void }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showCreateWizard, setShowCreateWizard] = useState(false);
+  const [reports, setReports] = useState<Report[]>([]);
 
-  const filteredReports = mockReports.filter(report => {
-    const matchesSearch = report.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         report.client?.toLowerCase().includes(searchTerm.toLowerCase());
+  useEffect(() => {
+    // TODO: Replace with API call to fetch reports
+    async function fetchReports() {
+      try {
+        const response = await fetch('http://localhost:3001/reports');
+        if (!response.ok) {
+          throw new Error('Failed to fetch reports');
+        }
+        const data = await response.json();
+        setReports(data);
+      } catch (error) {
+        console.error(error);
+        setReports([]);
+      }
+    }
+    fetchReports();
+  }, []);
+
+  // Add default values for progressPercent and issue counts to avoid type errors
+  const enhancedReports = reports.map(report => ({
+    ...report,
+    progressPercent: (report as any).progressPercent ?? 0,
+    criticalIssues: (report as any).criticalIssues ?? 0,
+    majorIssues: (report as any).majorIssues ?? 0,
+    minorIssues: (report as any).minorIssues ?? 0,
+  }));
+
+  const filteredReports = enhancedReports.filter(report => {
+    const matchesSearch = report.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         report.client.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || report.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -92,9 +60,10 @@ export const Dashboard = ({ onReportSelect }: DashboardProps) => {
   if (showCreateWizard) {
     return (
       <CreateReportWizard
-        onComplete={(reportId) => {
+        onComplete={(newReportId) => {
           setShowCreateWizard(false);
-          onReportSelect(reportId);
+          // Notify parent component of new report creation
+          onReportComplete(newReportId);
         }}
         onCancel={() => setShowCreateWizard(false)}
       />
@@ -102,13 +71,13 @@ export const Dashboard = ({ onReportSelect }: DashboardProps) => {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6" role="main" aria-label="Accessibility Reports Dashboard">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">
+          <h1 className="text-3xl font-bold text-foreground" tabIndex={0}>
             Accessibility Reports
           </h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-muted-foreground mt-1" tabIndex={0}>
             Manage and track your WCAG compliance audits
           </p>
         </div>
@@ -126,6 +95,7 @@ export const Dashboard = ({ onReportSelect }: DashboardProps) => {
             onClick={() => setShowCreateWizard(true)}
             size="sm"
             className="gap-2"
+            aria-label="Create new accessibility report"
           >
             <Plus className="h-4 w-4" aria-hidden="true" />
             Create Report

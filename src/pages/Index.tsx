@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Header } from '@/components/layout/Header';
 import { Dashboard } from '@/components/dashboard/Dashboard';
 import { TestingWorkspace } from '@/components/testing/TestingWorkspace';
-import type { WCAGVersion, WCAGLevel, ScopeType, ReportStatus } from '@/types';
+import type { WCAGVersion, WCAGLevel, ScopeType, ReportStatus, Report } from '@/types';
 
 type AppView = 'dashboard' | 'testing';
 
@@ -16,11 +16,77 @@ const Index = () => {
     currentView: 'dashboard'
   });
 
+  const [reports, setReports] = useState<Report[]>([]);
+  const [suggestedPages, setSuggestedPages] = useState<string[]>([]);
+
+  useEffect(() => {
+    async function fetchReports() {
+      try {
+        const response = await fetch('http://localhost:3001/reports');
+        if (!response.ok) {
+          throw new Error('Failed to fetch reports');
+        }
+        const data = await response.json();
+        setReports(data);
+      } catch (error) {
+        console.error(error);
+        setReports([]);
+      }
+    }
+    fetchReports();
+  }, []);
+
   const handleReportSelect = (reportId: string) => {
     setAppState({
       currentView: 'testing',
       selectedReportId: reportId
     });
+    // Update suggested pages for the selected report
+    const report = reports.find(r => r.id === reportId);
+    if (report && report.suggestedPages) {
+      setSuggestedPages(report.suggestedPages);
+    } else {
+      setSuggestedPages([]);
+    }
+  };
+
+  const handleReportCreate = (newReport: Report) => {
+    setReports(prevReports => [...prevReports, newReport]);
+    setAppState({
+      currentView: 'testing',
+      selectedReportId: newReport.id
+    });
+    if (newReport.suggestedPages) {
+      setSuggestedPages(newReport.suggestedPages);
+    } else {
+      setSuggestedPages([]);
+    }
+  };
+
+  const handleReportComplete = (newReportId: string) => {
+    // Fetch the newly created report from backend and update state
+    fetch(`http://localhost:3001/reports/${newReportId}`)
+      .then(res => res.json())
+      .then((createdReport: Report) => {
+        setReports(prevReports => [...prevReports, createdReport]);
+        setAppState({
+          currentView: 'testing',
+          selectedReportId: createdReport.id
+        });
+        if (createdReport.suggestedPages) {
+          setSuggestedPages(createdReport.suggestedPages);
+        } else {
+          setSuggestedPages([]);
+        }
+      })
+      .catch(() => {
+        // Fallback: just set selectedReportId without updating reports list
+        setAppState({
+          currentView: 'testing',
+          selectedReportId: newReportId
+        });
+        setSuggestedPages([]);
+      });
   };
 
   const handleBackToDashboard = () => {
@@ -28,20 +94,10 @@ const Index = () => {
       currentView: 'dashboard',
       selectedReportId: undefined
     });
+    setSuggestedPages([]);
   };
 
-  // Mock report data for testing workspace
-  const mockReport = {
-    id: appState.selectedReportId || '1',
-    title: 'E-commerce Platform Audit',
-    client: 'TechCorp Inc.',
-    project: 'Main Shopping Site',
-    standards: ['2.2'] as WCAGVersion[],
-    level: 'AA' as WCAGLevel,
-    scopeType: 'web' as ScopeType,
-    domain: 'shop.techcorp.com',
-    status: 'In Review' as ReportStatus
-  };
+  const selectedReport = reports.find(r => r.id === appState.selectedReportId);
 
   return (
     <div className="min-h-screen bg-background">
@@ -49,15 +105,20 @@ const Index = () => {
         <>
           <Header />
           <main>
-            <Dashboard onReportSelect={handleReportSelect} />
+            <Dashboard onReportSelect={handleReportSelect} onReportComplete={handleReportComplete} />
           </main>
         </>
       ) : (
         <main>
-          <TestingWorkspace 
-            report={mockReport}
-            onBack={handleBackToDashboard}
-          />
+          {selectedReport ? (
+            <TestingWorkspace 
+              report={selectedReport}
+              suggestedPages={suggestedPages}
+              onBack={handleBackToDashboard}
+            />
+          ) : (
+            <div>No report selected.</div>
+          )}
         </main>
       )}
     </div>

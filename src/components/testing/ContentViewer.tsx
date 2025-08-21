@@ -26,11 +26,16 @@ const DEVICE_PRESETS = [
 export const ContentViewer = ({ url, scopeType }: ContentViewerProps) => {
   const [currentDevice, setCurrentDevice] = useState(DEVICE_PRESETS[0]);
   const [showFocusOutlines, setShowFocusOutlines] = useState(false);
+  const [inputUrl, setInputUrl] = useState(url);
   const [viewerUrl, setViewerUrl] = useState(url);
 
   const handleRefresh = () => {
     // Force iframe refresh
-    setViewerUrl(url + '?t=' + Date.now());
+    setViewerUrl(inputUrl + '?t=' + Date.now());
+  };
+
+  const handleGoClick = () => {
+    setViewerUrl(inputUrl);
   };
 
   if (scopeType === 'pdf') {
@@ -153,10 +158,14 @@ export const ContentViewer = ({ url, scopeType }: ContentViewerProps) => {
 
         {/* URL Bar */}
         <div className="flex items-center gap-2">
-          <div className="flex-1 bg-background border rounded-md px-3 py-2 text-sm font-mono">
-            {url}
-          </div>
-          <Button variant="outline" size="sm">
+          <input
+            type="url"
+            className="flex-1 bg-background border rounded-md px-3 py-2 text-sm font-mono"
+            value={inputUrl}
+            onChange={(e) => setInputUrl(e.target.value)}
+            aria-label="URL input"
+          />
+          <Button variant="outline" size="sm" onClick={handleGoClick}>
             Go
           </Button>
         </div>

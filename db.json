@@ -1,0 +1,21 @@
+{
+  "reports": [
+    {
+      "id": "report-1755718998844",
+      "title": "asdasda",
+      "client": "wewewe",
+      "project": "dfsdfdf",
+      "domain": "https://www.shoptrazzo.com/",
+      "standards": [
+        "2.1"
+      ],
+      "level": "AA",
+      "scopeType": "web",
+      "status": "Draft",
+      "version": 1,
+      "tags": []
+    }
+  ],
+  "findings": [],
+  "evidence": []
+}

@@ -42,6 +42,7 @@ export interface Report extends BaseEntity {
     date: Date;
   };
   tags: string[];
+  suggestedPages?: string[];
 }
 
 export interface Page extends BaseEntity {

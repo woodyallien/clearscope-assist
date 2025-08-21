@@ -16,6 +16,8 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { WCAG_CRITERIA, WCAG_PRINCIPLES } from '@/data/wcag-criteria';
+import { EvidenceUploadModal } from './EvidenceUploadModal';
+import { NoteModal } from './NoteModal';
 import type { WCAGVersion, WCAGLevel, FindingStatus } from '@/types';
 
 interface WCAGChecklistProps {
@@ -32,17 +34,35 @@ interface CriterionState {
   hasNotes: boolean;
 }
 
-export const WCAGChecklist = ({ 
-  wcagVersion, 
-  wcagLevel, 
-  showCrosswalk, 
-  pageId, 
-  reportId 
+export const WCAGChecklist = ({
+  wcagVersion,
+  wcagLevel,
+  showCrosswalk,
+  pageId,
+  reportId,
 }: WCAGChecklistProps) => {
   const [expandedPrinciples, setExpandedPrinciples] = useState<Set<string>>(
     new Set(['1']) // Expand first principle by default
   );
   const [criterionStates, setCriterionStates] = useState<Record<string, CriterionState>>({});
+  const [uploadModalOpen, setUploadModalOpen] = useState<string | null>(null);
+  const [evidenceCounts, setEvidenceCounts] = useState<Record<string, number>>({});
+  const [noteModalOpen, setNoteModalOpen] = useState<string | null>(null);
+  const [notes, setNotes] = useState<Record<string, string>>({});
+
+  const handleUploadComplete = (files: File[]) => {
+    // Simulate evidence count update for the criterion
+    if (uploadModalOpen) {
+      setEvidenceCounts(prev => ({
+        ...prev,
+        [uploadModalOpen]: (prev[uploadModalOpen] || 0) + files.length,
+      }));
+    }
+    // TODO: Implement logic to link uploaded files to the criterion, report, and page in the database
+    // For now, just log the files
+    console.log('Uploaded files:', files);
+    // Optionally update state to reflect evidence presence
+  };
 
   // Filter criteria based on selected version and level
   const filteredCriteria = WCAG_CRITERIA.filter(criterion => {
@@ -53,7 +73,7 @@ export const WCAGChecklist = ({
 
   const groupedCriteria = WCAG_PRINCIPLES.map(principle => ({
     ...principle,
-    criteria: filteredCriteria.filter(c => c.principle === principle.name)
+    criteria: filteredCriteria.filter(c => c.principle === principle.name),
   }));
 
   const togglePrinciple = (principleId: string) => {
@@ -71,8 +91,8 @@ export const WCAGChecklist = ({
       ...prev,
       [wcagId]: {
         ...prev[wcagId],
-        status
-      }
+        status,
+      },
     }));
   };
 
@@ -92,13 +112,17 @@ export const WCAGChecklist = ({
   const getLevelBadgeColor = (level: WCAGLevel) => {
     switch (level) {
       case 'A':
-        return 'bg-success/10 text-success-foreground border-success/20';
+        // Lowest conformance level → softer blue
+        return 'bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-700 hover:text-blue-100 hover:border-blue-600';
       case 'AA':
-        return 'bg-warning/10 text-warning-foreground border-warning/20';
+        // Mid-level conformance → strong amber/gold
+        return 'bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-700 hover:text-amber-100 hover:border-amber-600';
       case 'AAA':
-        return 'bg-destructive/10 text-destructive-foreground border-destructive/20';
+        // Highest conformance → strong green
+        return 'bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-700 hover:text-emerald-100 hover:border-emerald-600';
       default:
-        return 'bg-muted text-muted-foreground';
+        // Fallback neutral
+        return 'bg-gray-100 text-gray-600 border-gray-300';
     }
   };
 
@@ -132,11 +156,11 @@ export const WCAGChecklist = ({
               </div>
             </Button>
           </CollapsibleTrigger>
-          
+
           <CollapsibleContent className="pl-6 space-y-2">
             {principle.criteria.map((criterion) => {
               const state = criterionStates[criterion.wcagId] || { status: 'Needs Review' as FindingStatus };
-              
+
               return (
                 <div
                   key={criterion.wcagId}
@@ -161,7 +185,7 @@ export const WCAGChecklist = ({
                         {criterion.title}
                       </h4>
                     </div>
-                    
+
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -192,7 +216,7 @@ export const WCAGChecklist = ({
                   >
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="Pass" id={`${criterion.wcagId}-pass`} />
-                      <Label 
+                      <Label
                         htmlFor={`${criterion.wcagId}-pass`}
                         className="text-sm text-success cursor-pointer"
                       >
@@ -201,7 +225,7 @@ export const WCAGChecklist = ({
                     </div>
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="Fail" id={`${criterion.wcagId}-fail`} />
-                      <Label 
+                      <Label
                         htmlFor={`${criterion.wcagId}-fail`}
                         className="text-sm text-destructive cursor-pointer"
                       >
@@ -210,7 +234,7 @@ export const WCAGChecklist = ({
                     </div>
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="Needs Review" id={`${criterion.wcagId}-review`} />
-                      <Label 
+                      <Label
                         htmlFor={`${criterion.wcagId}-review`}
                         className="text-sm text-warning cursor-pointer"
                       >
@@ -221,13 +245,48 @@ export const WCAGChecklist = ({
 
                   {state.status === 'Fail' && (
                     <div className="flex items-center gap-2 pt-2 border-t">
-                      <Button size="sm" variant="outline" className="h-7">
+                      <EvidenceUploadModal
+                        wcagId={criterion.wcagId}
+                        criterionTitle={criterion.title}
+                        isOpen={uploadModalOpen === criterion.wcagId}
+                        onClose={() => setUploadModalOpen(null)}
+                        onUploadComplete={handleUploadComplete}
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7"
+                        onClick={() => setUploadModalOpen(criterion.wcagId)}
+                      >
                         <Plus className="h-3 w-3 mr-1" aria-hidden="true" />
                         Evidence
+                        {evidenceCounts[criterion.wcagId] ? (
+                          <span className="ml-2 inline-block bg-blue-200 text-blue-800 rounded-full px-2 py-0.5 text-xs font-semibold">
+                            +{evidenceCounts[criterion.wcagId]}
+                          </span>
+                        ) : null}
                       </Button>
-                      <Button size="sm" variant="outline" className="h-7">
+                      <NoteModal
+                        wcagId={criterion.wcagId}
+                        criterionTitle={criterion.title}
+                        isOpen={noteModalOpen === criterion.wcagId}
+                        initialNote={notes[criterion.wcagId] || ''}
+                        onClose={() => setNoteModalOpen(null)}
+                        onSave={note => setNotes(prev => ({ ...prev, [criterion.wcagId]: note }))}
+                      />
+                      <Button
+                        size="sm"
+                        variant={notes[criterion.wcagId] ? "default" : "outline"}
+                        className="h-7"
+                        onClick={() => setNoteModalOpen(criterion.wcagId)}
+                      >
                         <AlertTriangle className="h-3 w-3 mr-1" aria-hidden="true" />
                         Note
+                        {notes[criterion.wcagId] ? (
+                          <span className="ml-2 inline-block bg-amber-200 text-amber-800 rounded-full px-2 py-0.5 text-xs font-semibold">
+                            Added
+                          </span>
+                        ) : null}
                       </Button>
                     </div>
                   )}

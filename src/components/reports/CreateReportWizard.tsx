@@ -21,6 +21,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import type { WCAGLevel, WCAGVersion, ScopeType } from '@/types';
+import { crawlHomepage } from '@/lib/crawler';
 
 interface CreateReportWizardProps {
   onComplete: (reportId: string) => void;
@@ -59,8 +60,28 @@ export const CreateReportWizard = ({ onComplete, onCancel }: CreateReportWizardP
     description: '',
   });
 
+  const [suggestedPages, setSuggestedPages] = useState<string[]>([]);
+  const [isCrawling, setIsCrawling] = useState(false);
+
   const updateFormData = (updates: Partial<ReportFormData>) => {
     setFormData(prev => ({ ...prev, ...updates }));
+
+    if (updates.domain) {
+      setIsCrawling(true);
+      // When domain changes, fetch suggested pages from backend API
+      fetch(`/api/crawl?domain=${encodeURIComponent(updates.domain)}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.suggestedPages) {
+            setSuggestedPages(data.suggestedPages);
+          }
+          setIsCrawling(false);
+        })
+        .catch(() => {
+          setSuggestedPages([]);
+          setIsCrawling(false);
+        });
+    }
   };
 
   const handleNext = () => {
@@ -75,11 +96,47 @@ export const CreateReportWizard = ({ onComplete, onCancel }: CreateReportWizardP
     }
   };
 
-  const handleSubmit = () => {
-    // In a real app, this would create the report via API
-    const newReportId = `report-${Date.now()}`;
-    onComplete(newReportId);
-  };
+    const handleSubmit = async () => {
+      // Validate required fields before submitting
+      if (!formData.title || !formData.client || !formData.domain) {
+        alert('Please fill in all required fields.');
+        return;
+      }
+      if (!formData.wcagVersion || !formData.wcagLevel || !formData.scopeType) {
+        alert('Please select WCAG version, level, and scope type.');
+        return;
+      }
+      // Create the report via API
+      const newReport = {
+        id: `report-${Date.now()}`,
+        title: formData.title,
+        client: formData.client,
+        project: formData.project,
+        domain: formData.domain,
+        standards: [formData.wcagVersion],
+        level: formData.wcagLevel,
+        scopeType: formData.scopeType,
+        status: 'Draft',
+        version: 1,
+        tags: [],
+      };
+      try {
+        const response = await fetch('http://localhost:3001/reports', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(newReport),
+        });
+        if (!response.ok) {
+          throw new Error('Failed to create report');
+        }
+        const createdReport = await response.json();
+        onComplete(createdReport.id);
+      } catch (error) {
+        alert('Error creating report: ' + error.message);
+      }
+    };
 
   const isStepValid = (step: number) => {
     switch (step) {
