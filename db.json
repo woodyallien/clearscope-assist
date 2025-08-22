@@ -14,6 +14,61 @@
       "status": "Draft",
       "version": 1,
       "tags": []
+    },
+    {
+      "id": "report-1755820000000",
+      "title": "Accessibility Audit for ExampleCorp",
+      "client": "ExampleCorp",
+      "project": "Website Accessibility Review",
+      "domain": "https://www.example.com/",
+      "standards": [
+        "2.1",
+        "WCAG"
+      ],
+      "level": "AA",
+      "scopeType": "web",
+      "status": "Complete",
+      "version": 1,
+      "tags": [
+        "accessibility",
+        "audit",
+        "2025"
+      ]
+    },
+    {
+      "id": "report-1755900000000",
+      "title": "Accessibility Audit for DemoSite",
+      "client": "DemoClient",
+      "project": "DemoSite Accessibility Review",
+      "domain": "https://www.demosite.com/",
+      "standards": [
+        "2.1",
+        "WCAG"
+      ],
+      "level": "AAA",
+      "scopeType": "web",
+      "status": "Complete",
+      "version": 1,
+      "tags": [
+        "accessibility",
+        "demo",
+        "2025"
+      ]
+    },
+    {
+      "id": "report-1755876408777",
+      "title": "Accessibility Audit for DemoSite",
+      "client": "DemoClient",
+      "project": "DemoSite Accessibility Review",
+      "domain": "https://demo.competethemes.com/",
+      "standards": [
+        "2.1"
+      ],
+      "level": "AA",
+      "scopeType": "web",
+      "status": "Draft",
+      "version": 1,
+      "tags": []
     }
   ],
   "findings": [],
