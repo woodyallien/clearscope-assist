@@ -21,36 +21,48 @@ export const Dashboard = ({ onReportSelect, onReportComplete }: DashboardProps &
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showCreateWizard, setShowCreateWizard] = useState(false);
-  const [reports, setReports] = useState<Report[]>([]);
+  // Use any[] to allow enhanced report properties
+  const [reports, setReports] = useState<any[]>([]);
 
   useEffect(() => {
-    // TODO: Replace with API call to fetch reports
-    async function fetchReports() {
+    // Fetch reports and findings, then calculate progress
+    async function fetchReportsAndFindings() {
       try {
-        const response = await fetch('http://localhost:3001/reports');
-        if (!response.ok) {
-          throw new Error('Failed to fetch reports');
+        const [reportsRes, findingsRes] = await Promise.all([
+          fetch('http://localhost:3001/reports'),
+          fetch('http://localhost:3001/findings')
+        ]);
+        if (!reportsRes.ok || !findingsRes.ok) {
+          throw new Error('Failed to fetch reports or findings');
         }
-        const data = await response.json();
-        setReports(data);
+        const reportsData = await reportsRes.json();
+        const findingsData = await findingsRes.json();
+
+        // Calculate progress for each report
+        const enhancedReports = reportsData.map((report: any) => {
+          const findingsForReport = findingsData.filter((f: any) => f.reportId === report.id);
+          const completed = findingsForReport.filter((f: any) => f.status === 'Pass' || f.status === 'Fail').length;
+          // For demo, assume 50 criteria per report (replace with real count if available)
+          const total = 50;
+          const progressPercent = total > 0 ? Math.round((completed / total) * 100) : 0;
+          return {
+            ...report,
+            progressPercent,
+            criticalIssues: findingsForReport.filter((f: any) => f.severity === 'Critical').length,
+            majorIssues: findingsForReport.filter((f: any) => f.severity === 'Major').length,
+            minorIssues: findingsForReport.filter((f: any) => f.severity === 'Minor').length,
+          };
+        });
+        setReports(enhancedReports);
       } catch (error) {
         console.error(error);
         setReports([]);
       }
     }
-    fetchReports();
+    fetchReportsAndFindings();
   }, []);
 
-  // Add default values for progressPercent and issue counts to avoid type errors
-  const enhancedReports = reports.map(report => ({
-    ...report,
-    progressPercent: (report as any).progressPercent ?? 0,
-    criticalIssues: (report as any).criticalIssues ?? 0,
-    majorIssues: (report as any).majorIssues ?? 0,
-    minorIssues: (report as any).minorIssues ?? 0,
-  }));
-
-  const filteredReports = enhancedReports.filter(report => {
+  const filteredReports = reports.filter(report => {
     const matchesSearch = report.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          report.client.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || report.status === statusFilter;

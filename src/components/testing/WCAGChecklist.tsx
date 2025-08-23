@@ -50,15 +50,49 @@ export const WCAGChecklist = ({
   const [noteModalOpen, setNoteModalOpen] = useState<string | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
 
-  const handleUploadComplete = (files: File[]) => {
+  const handleUploadComplete = async (files: File[]) => {
     // Simulate evidence count update for the criterion
     if (uploadModalOpen) {
       setEvidenceCounts(prev => ({
         ...prev,
         [uploadModalOpen]: (prev[uploadModalOpen] || 0) + files.length,
       }));
+
+      // AUTOSAVE: Update finding with new evidenceIds (simulate with file names as IDs)
+      try {
+        const res = await fetch(`http://localhost:3001/findings?reportId=${reportId}&pageId=${pageId}&wcagId=${uploadModalOpen}`);
+        const existing = await res.json();
+        const evidenceIds = files.map(f => f.name); // Simulate evidence IDs with file names
+        if (existing.length > 0) {
+          await fetch(`http://localhost:3001/findings/${existing[0].id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ evidenceIds }),
+          });
+        } else {
+          await fetch('http://localhost:3001/findings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              reportId,
+              pageId,
+              wcagId: uploadModalOpen,
+              status: 'Fail',
+              description: notes[uploadModalOpen] || '',
+              evidenceIds,
+              labels: [],
+              assistiveTechUsed: [],
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              createdBy: 'autosave',
+              updatedBy: 'autosave'
+            }),
+          });
+        }
+      } catch (err) {
+        console.error('Autosave evidence failed:', err);
+      }
     }
-    // TODO: Implement logic to link uploaded files to the criterion, report, and page in the database
     // For now, just log the files
     console.log('Uploaded files:', files);
     // Optionally update state to reflect evidence presence
@@ -86,7 +120,7 @@ export const WCAGChecklist = ({
     setExpandedPrinciples(newExpanded);
   };
 
-  const updateCriterionStatus = (wcagId: string, status: FindingStatus) => {
+  const updateCriterionStatus = async (wcagId: string, status: FindingStatus) => {
     setCriterionStates(prev => ({
       ...prev,
       [wcagId]: {
@@ -94,6 +128,44 @@ export const WCAGChecklist = ({
         status,
       },
     }));
+
+    // AUTOSAVE: Create or update finding in backend
+    try {
+      // Try to find existing finding for this report/page/wcagId
+      const res = await fetch(`http://localhost:3001/findings?reportId=${reportId}&pageId=${pageId}&wcagId=${wcagId}`);
+      const existing = await res.json();
+      if (existing.length > 0) {
+        // Update existing finding
+        await fetch(`http://localhost:3001/findings/${existing[0].id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status }),
+        });
+      } else {
+        // Create new finding
+        await fetch('http://localhost:3001/findings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            reportId,
+            pageId,
+            wcagId,
+            status,
+            description: notes[wcagId] || '',
+            evidenceIds: [],
+            labels: [],
+            assistiveTechUsed: [],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            createdBy: 'autosave',
+            updatedBy: 'autosave'
+          }),
+        });
+      }
+    } catch (err) {
+      // Optionally show error to user
+      console.error('Autosave failed:', err);
+    }
   };
 
   const getStatusColor = (status: FindingStatus) => {
@@ -272,7 +344,42 @@ export const WCAGChecklist = ({
                         isOpen={noteModalOpen === criterion.wcagId}
                         initialNote={notes[criterion.wcagId] || ''}
                         onClose={() => setNoteModalOpen(null)}
-                        onSave={note => setNotes(prev => ({ ...prev, [criterion.wcagId]: note }))}
+                        onSave={async note => {
+                          setNotes(prev => ({ ...prev, [criterion.wcagId]: note }));
+                          // AUTOSAVE: Update finding with new note
+                          try {
+                            const res = await fetch(`http://localhost:3001/findings?reportId=${reportId}&pageId=${pageId}&wcagId=${criterion.wcagId}`);
+                            const existing = await res.json();
+                            if (existing.length > 0) {
+                              await fetch(`http://localhost:3001/findings/${existing[0].id}`, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ description: note }),
+                              });
+                            } else {
+                              await fetch('http://localhost:3001/findings', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  reportId,
+                                  pageId,
+                                  wcagId: criterion.wcagId,
+                                  status: criterionStates[criterion.wcagId]?.status || 'Needs Review',
+                                  description: note,
+                                  evidenceIds: [],
+                                  labels: [],
+                                  assistiveTechUsed: [],
+                                  createdAt: new Date().toISOString(),
+                                  updatedAt: new Date().toISOString(),
+                                  createdBy: 'autosave',
+                                  updatedBy: 'autosave'
+                                }),
+                              });
+                            }
+                          } catch (err) {
+                            console.error('Autosave note failed:', err);
+                          }
+                        }}
                       />
                       <Button
                         size="sm"
