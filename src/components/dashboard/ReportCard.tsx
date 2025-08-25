@@ -10,6 +10,9 @@ interface ReportCardProps {
     criticalIssues: number;
     majorIssues: number;
     minorIssues: number;
+    due_date?: string;
+    priority?: 'Low' | 'Medium' | 'High' | 'Critical';
+    client_name?: string;
   };
   onSelect: (reportId: string) => void;
 }
